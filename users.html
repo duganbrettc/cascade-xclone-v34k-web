@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>xclone - Users</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+  <a href="/">Home</a>
+  <a href="/post">Post</a>
+  <a href="/profile">Profile</a>
+  <a href="/users">Users</a>
+  <button onclick="doLogout()">Logout</button>
+</nav>
+<main class="container">
+  <h1>Users</h1>
+  <div id="userList"><p>Loading users... browse profiles at <a href="/users/">/users/{username}</a></p></div>
+</main>
+<script>
+const token = localStorage.getItem('token');
+if (!token) { window.location.href = '/login'; }
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function loadUsers() {
+  const res = await fetch('/api/users', { headers: { 'Authorization': 'Bearer ' + token } });
+  if (res.status === 401) { window.location.href = '/login'; return; }
+  const users = await res.json();
+  const div = document.getElementById('userList');
+  if (!users || users.length === 0) {
+    div.innerHTML = '<p>No users found.</p>';
+    return;
+  }
+  div.innerHTML = users.map(u => `
+    <div class="post-card">
+      <a href="/users/${escHtml(u.username)}">/users/${escHtml(u.username)}</a>
+      <strong> ${escHtml(u.username)}</strong>
+      ${u.display_name ? ' — ' + escHtml(u.display_name) : ''}
+    </div>
+  `).join('');
+}
+
+function doLogout() {
+  localStorage.removeItem('token');
+  window.location.href = '/login';
+}
+
+loadUsers();
+</script>
+</body>
+</html>

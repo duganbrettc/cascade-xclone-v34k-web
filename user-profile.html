@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>xclone - User Profile</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+  <a href="/">Home</a>
+  <a href="/post">Post</a>
+  <a href="/profile">Profile</a>
+  <a href="/users">Users</a>
+  <button onclick="doLogout()">Logout</button>
+</nav>
+<main class="container">
+  <section id="userInfo"><p>Loading...</p></section>
+  <section id="posts"></section>
+</main>
+<script>
+const token = localStorage.getItem('token');
+const username = decodeURIComponent(window.location.pathname.split('/').filter(Boolean).pop());
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function loadUser() {
+  const res = await fetch('/api/users/' + encodeURIComponent(username));
+  if (res.status === 404) {
+    document.getElementById('userInfo').innerHTML = '<p>User not found.</p>';
+    return;
+  }
+  const user = await res.json();
+  let followHtml = '';
+  if (token) {
+    const statusRes = await fetch('/api/follow/status?username=' + encodeURIComponent(username), {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (statusRes.ok) {
+      const statusData = await statusRes.json();
+      const following = statusData.following;
+      followHtml = `<button id="followBtn" onclick="toggleFollow(${following})">${following ? 'Unfollow' : 'Follow'}</button>`;
+    }
+  }
+  document.getElementById('userInfo').innerHTML = `
+    <h1>${escHtml(user.username)}</h1>
+    ${user.display_name ? '<p>' + escHtml(user.display_name) + '</p>' : ''}
+    ${user.bio ? '<p>' + escHtml(user.bio) + '</p>' : ''}
+    ${followHtml}
+  `;
+  loadPosts();
+}
+
+async function loadPosts() {
+  const res = await fetch('/api/posts/by/' + encodeURIComponent(username));
+  if (!res.ok) return;
+  const posts = await res.json();
+  document.getElementById('posts').innerHTML = posts.length === 0
+    ? '<p>No posts yet.</p>'
+    : posts.map(p => `<div class="post-card"><div>${escHtml(p.body)}</div></div>`).join('');
+}
+
+async function toggleFollow(currentlyFollowing) {
+  const method = currentlyFollowing ? 'DELETE' : 'POST';
+  await fetch('/api/follow/' + encodeURIComponent(username), {
+    method,
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  loadUser();
+}
+
+function doLogout() {
+  localStorage.removeItem('token');
+  window.location.href = '/login';
+}
+
+loadUser();
+</script>
+</body>
+</html>

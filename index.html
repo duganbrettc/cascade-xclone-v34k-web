@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>xclone - Timeline</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+  <a href="/">Home</a>
+  <a href="/post">Post</a>
+  <a href="/profile">Profile</a>
+  <a href="/users">Users</a>
+  <button onclick="doLogout()">Logout</button>
+</nav>
+<main class="container">
+  <h1>Timeline</h1>
+  <div id="greeting"></div>
+  <div id="timeline"><p>Loading...</p></div>
+</main>
+<script>
+const token = localStorage.getItem('token');
+if (!token) { window.location.href = '/login'; }
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function loadMe() {
+  const res = await fetch('/api/users/me', { headers: { 'Authorization': 'Bearer ' + token } });
+  if (res.ok) {
+    const user = await res.json();
+    document.getElementById('greeting').textContent = 'Welcome, ' + user.username + '!';
+  }
+}
+
+async function loadTimeline() {
+  const res = await fetch('/api/timeline', { headers: { 'Authorization': 'Bearer ' + token } });
+  if (res.status === 401) { window.location.href = '/login'; return; }
+  const posts = await res.json();
+  const div = document.getElementById('timeline');
+  if (!posts || posts.length === 0) {
+    div.innerHTML = '<p>No posts yet. Follow some users or create a post!</p>';
+    return;
+  }
+  div.innerHTML = posts.map(p => `
+    <div class="post-card">
+      <div class="author"><a href="/users/${escHtml(p.username)}">${escHtml(p.username)}</a></div>
+      <div>${escHtml(p.body)}</div>
+    </div>
+  `).join('');
+}
+
+function doLogout() {
+  localStorage.removeItem('token');
+  window.location.href = '/login';
+}
+
+loadMe();
+loadTimeline();
+</script>
+</body>
+</html>

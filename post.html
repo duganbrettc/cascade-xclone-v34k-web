@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>xclone - New Post</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+  <a href="/">Home</a>
+  <a href="/post">Post</a>
+  <a href="/profile">Profile</a>
+  <a href="/users">Users</a>
+  <button onclick="doLogout()">Logout</button>
+</nav>
+<main class="container">
+  <h1>New Post</h1>
+  <form id="postForm">
+    <div class="form-group">
+      <label>What's on your mind?</label>
+      <textarea name="body" rows="4" required></textarea>
+    </div>
+    <button type="submit">Post</button>
+  </form>
+  <div id="msg"></div>
+</main>
+<script>
+const token = localStorage.getItem('token');
+if (!token) { window.location.href = '/login'; }
+
+document.getElementById('postForm').addEventListener('submit', submitPost);
+
+async function submitPost(e) {
+  e.preventDefault();
+  const body = e.target.elements['body'].value;
+  const res = await fetch('/api/posts', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + token
+    },
+    body: JSON.stringify({ body })
+  });
+  if (res.status === 201) {
+    document.getElementById('msg').textContent = 'Posted successfully!';
+    e.target.reset();
+  } else {
+    document.getElementById('msg').textContent = 'Failed to post.';
+  }
+}
+
+function doLogout() {
+  localStorage.removeItem('token');
+  window.location.href = '/login';
+}
+</script>
+</body>
+</html>
