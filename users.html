@@ -34,13 +34,38 @@ async function loadUsers() {
     div.innerHTML = '<p>No users found.</p>';
     return;
   }
-  div.innerHTML = users.map(u => `
-    <div class="post-card">
-      <a href="/users/${escHtml(u.username)}">/users/${escHtml(u.username)}</a>
-      <strong> ${escHtml(u.username)}</strong>
-      ${u.display_name ? ' — ' + escHtml(u.display_name) : ''}
-    </div>
-  `).join('');
+  const statuses = await Promise.all(users.map(u =>
+    fetch('/api/follow/status?username=' + encodeURIComponent(u.username), {
+      headers: { 'Authorization': 'Bearer ' + token }
+    }).then(r => r.ok ? r.json() : { following: false }).catch(() => ({ following: false }))
+  ));
+  div.innerHTML = users.map((u, i) => {
+    const following = statuses[i].following;
+    return `
+      <div class="post-card" id="user-row-${escHtml(u.username)}">
+        <a href="/users/${escHtml(u.username)}">/users/${escHtml(u.username)}</a>
+        <strong> ${escHtml(u.username)}</strong>
+        ${u.display_name ? ' — ' + escHtml(u.display_name) : ''}
+        <button onclick="toggleFollow('${escHtml(u.username)}', ${following})" id="follow-btn-${escHtml(u.username)}">${following ? 'Unfollow' : 'Follow'}</button>
+      </div>
+    `;
+  }).join('');
+}
+
+async function toggleFollow(username, currentlyFollowing) {
+  const method = currentlyFollowing ? 'DELETE' : 'POST';
+  const res = await fetch('/api/follow/' + encodeURIComponent(username), {
+    method,
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  if (res.ok || res.status === 201 || res.status === 204) {
+    const btn = document.getElementById('follow-btn-' + username);
+    if (btn) {
+      const nowFollowing = !currentlyFollowing;
+      btn.textContent = nowFollowing ? 'Unfollow' : 'Follow';
+      btn.onclick = () => toggleFollow(username, nowFollowing);
+    }
+  }
 }
 
 function doLogout() {
